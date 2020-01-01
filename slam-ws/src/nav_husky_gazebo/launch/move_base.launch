@@ -18,5 +18,6 @@
     
     <!-- Set control loop frequency to an appropriate rate -->
     <param name="controller_frequency" value="10.0" />
+    <remap from="map" to="lane_map" />
   </node> 
 </launch> 
