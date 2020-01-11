@@ -642,7 +642,7 @@ def get_lane_points():
 		image_name = '1' + '.jpg'
 		cwd = os.getcwd()
 		print(cwd)
-		image= cv2.imread('/home/michelle/Documents/SLAM/slam-ws/src/lane_mapping/src/images/' + image_name)
+		image= cv2.imread('/home/utra-art/ART/lane_detection_slam/SLAM/slam-ws/src/lane_mapping/src/images/' + image_name)
 		test_image = process_image(image, bboxes)
 		sw, points = highlight_all(test_image)
 		if(len(points) > 0):

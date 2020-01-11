@@ -21,7 +21,7 @@ class Nav_State:
         # header
         new_grid.header.seq = 2
         new_grid.header.stamp = rospy.Time.now()
-        new_grid.header.frame_id = "map" # CHANGE HERE: odom/map
+        new_grid.header.frame_id = "odom" # CHANGE HERE: odom/map
         # resolution
         new_grid.info = (map_msg.info)
         
@@ -63,7 +63,7 @@ class Nav_State:
         return int(self.pose_x) + self.shift
 
     def get_tf_y(self):
-        return int(self.pose_y) + self.shift
+        return int(self.pose_y) + slf.shift
 
     def get_array_idx(self):
         num_rows = 4000-self.get_tf_y()
