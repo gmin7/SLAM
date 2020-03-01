@@ -1,48 +1,58 @@
-# SLAM on ROS #
+# SLAM and Navigation on ROS #
 
-This project runs on ROS Kinetic for Ubuntu 16.04
+This project runs on ROS Kinetic for Ubuntu 16.04. Please check out our [Wiki](https://github.com/UTRA-ART/SLAM/wiki#getting-started-with-ros) for more information.
 
 ## Setting up the ROS Environment ##
-1. Perform ROS Kinetic full install. See: [ROS Kinetic Installation](http://wiki.ros.org/kinetic/Installation/Ubuntu)
-2. Install husky desktop and simulator. See: [Clearpath ROS Tutorial](https://www.clearpathrobotics.com/assets/guides/ros/Drive%20a%20Husky.html) or [Husky Simulation Wiki](http://wiki.ros.org/husky_gazebo/Tutorials/Simulating%20Husky) for details.
-Run:
-```
-$ sudo apt-get update
-$ sudo apt-get install ros-kinetic-husky-desktop
-$ sudo apt-get install ros-kinetic-husky-simulator
-```
-3. Install the Navigation Stack: `sudo apt-get install ros-kinetic-navigation`
-4. Install gmapping (SLAM package): `sudo apt-get install ros-kinetic-gmapping`
 
-## Creating the ROS Workspace ##
-First clone the git repository, then create a workspace. After run:
+### Install ROS Kinetic
+See [Getting Started with ROS](https://github.com/UTRA-ART/SLAM/wiki#getting-started-with-ros) for installation instructions.
+
+### Install the [husky-desktop]() and [husky-simulator]() Packages
+```sudo apt-get update
+sudo apt-get install ros-kinetic-husky-desktop
+sudo apt-get install ros-kinetic-husky-simulator
+```
+
+### Install the [navigation](http://wiki.ros.org/navigation) Package
+```
+sudo apt-get install ros-kinetic-navigation
+```
+
+### Install the [gmapping](http://wiki.ros.org/gmapping) Package:
+```
+sudo apt-get install ros-kinetic-gmapping
+```
+> **Note:** This is the package we use for performing SLAM.
+
+## Creating the ROS Workspace
+First clone the git repository, then create a workspace by running
 ```
 # Creates CMake file in src
-$ mkdir -p ./slam-ws/src  # These folders already exist on Github, so don't run this line
-$ cd ./slam-ws/src
-$ catkin_init_workspace
+cd ./slam-ws/src
+catkin_init_workspace
 
 # Creates setup files - build/ and devel/ folders
-$ cd ./slam-ws
-$ catkin_make
+cd ./slam-ws
+catkin_make
 ```
 
-## Cleaning ##
+### Cleaning the ROS Workspace 
 Every once in a while it is necessary to clear unnecesary logs that are saved from tests that have been run. These logs can quickly add up to the GB range, and can slow down ROS. To check how many logs you have run:
 
 ```
-$ rosclean check
+rosclean check
 ```
 
 This should give you how much memory is consumed by logs. If nothing is returned you have no logs. 
 To delete logs run:
 
 ```
-$ rosclean purge
+rosclean purge
 ``` 
 
-
-### Useful ROS Resources ###
-- [ROS Wiki](http://wiki.ros.org)
-- [A Gentle Introduction to ROS](https://cse.sc.edu/~jokane/agitr/agitr-letter.pdf)
-- [Programming with ROS](http://marte.aslab.upm.es/redmine/files/dmsf/p_drone-testbed/170324115730_268_Quigley_-_Programming_Robots_with_ROS.pdf?fbclid=IwAR2iVBeZ9WQu1uG614YMamUZlxvd8nJoHbxW5BntgaEjgVI4MBOzqOCdYi8)
+---
+<p align="center">
+<img src="https://raw.githubusercontent.com/UTRA-ART/SLAM/dev/docs/res/utra-logo.png" alt="UTRA logo" width="200"/>
+</p>
+<p align = "center"><b>University of Toronto Robotics Association</b></p>
+<p align = "center">Autonomous Rover Team</p>
