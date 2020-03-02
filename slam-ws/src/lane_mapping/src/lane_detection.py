@@ -8,135 +8,110 @@ from tf import TransformListener
 from  geometry_msgs.msg import PointStamped
 from tf.transformations import quaternion_matrix
 
-
+## To Do
+'''
+'''
 
 # Define the class that will store global state of the robot
-class Nav_State:
+class NavState:
     def __init__(self):
-        self.k = 100
-        self.last_grid = OccupancyGrid()
-        self.pose_x = 0.0
-        self.pose_y = 0.0
-        self.shift = 2000
-        self.listener = TransformListener()
-        self.test_points = get_lane_points()
 
+        self.ogridPub = rospy.Publisher(
+            '/lane_map', 
+            OccupancyGrid, 
+            queue_size=1000
+        )
+        self.listener     = TransformListener()
+        self.test_points  = get_lane_points  ()
+        self.odom_counter = 0
+        self.map_received = False
 
+        self.latest_ogrid   = OccupancyGrid()
+        self.ogridToPublish = OccupancyGrid()
+        self.list = list((0,)*4000*4000)
+
+        # Initialize the grid to be painted and published
+        self.ogridToPublish.header.stamp = rospy.Time.now()
+        self.ogridToPublish.header.frame_id = "odom"
+
+        # Define baselink to map transform based on
+        # latest odom data
         self.a = 0
         self.b = 0
         self.d = 0
         self.e = 0
-
-        self.position_x = 0
-        self.position_y = 0
-
-    def update_grid(self, map_msg):
-        new_grid = OccupancyGrid()
-
-
-        # header
-        new_grid.header.seq = 2
-        new_grid.header.stamp = rospy.Time.now()
-        new_grid.header.frame_id = "odom" # CHANGE HERE: odom/map
-        # resolution
-        new_grid.info = (map_msg.info)
-        print(new_grid.info)
-        
-        new_grid.data = list((0,)*4000*4000)
-        # print('got here')
-
-        # i = self.get_array_idx()
-        # assert i<4000*4000-1, "i is out of bounds"
-        # new_grid.data[i] = 100
-        # print('got i: ', i)
-        # for j in range(300):
-        #     new_grid.data[i+j] = 100
-        #     new_grid.data[i-j] = 100
-        for j in range(4000*4000):
-            if(map_msg.data[j-1] == 100):
-                new_grid.data[j-1] = map_msg.data[j-1]
-
+        self.positionX = 0
+        self.positionY = 0
+    
+    def get_lane_coords(self):
         xcoords = self.test_points[0]/10
         ycoords = self.test_points[1]/10
+        return xcoords, ycoords
+
+    def publish_new_grid(self):
+        print('Start')
+
+        # Paint the lanes onto grid
+        xcoords, ycoords = self.get_lane_coords()
         for idx, xcoord in enumerate(xcoords):
-
+            # Normalize coords to unit square at 
+            # bottom corner of grid
             x = ((xcoord)       / 1280 * 1000) - 50
-            y = ((ycoords[idx]) / 720  * 1000)
+            y = ((ycoords[idx]) / 720  * 1000) / 4 + 20
 
+            # Orient lanes parallel to rover
             x_new = (self.a*x - self.b*y)  + 2000
             y_new = (-self.d*x + self.e*y) + 2000
 
-            # x_new = int(x) + 2000 
-            # y_new = int(y) + 2000 
+            # Shift lanes to current location of rover
+            cols = (x_new + (self.positionX / self.latest_ogrid.info.resolution))
+            rows = (y_new + (self.positionY / self.latest_ogrid.info.resolution))
 
-            # origin_x = int(((self.pose_x - map_msg.info.origin.position.x) / map_msg.info.resolution))
-            # origin_y = int(((self.pose_y - map_msg.info.origin.position.y) / map_msg.info.resolution))
+            i = int(cols)*4000 + int(rows)
+            self.list[i] = 100
 
-            rows = int(y_new + (self.position_y   / map_msg.info.resolution))
-            cols = int(x_new + (self.position_x   / map_msg.info.resolution))
-
-            i = cols*4000 + rows
-            new_grid.data[i] = 100              
-
-        # print('exited loop')
-        new_grid.data = tuple(new_grid.data)
-        # print('new grid data: ', new_grid.info)
-        self.last_grid = new_grid 
+        print('About to Publish')
+        self.ogridToPublish.data = tuple(self.list)
+        self.ogridPub.publish(self.ogridToPublish)
+        print('End')
+        n_state.map_received = True
 
     def update_odom(self, odom_msg):
-        self.pose_x = odom_msg.pose.pose.position.x
-        self.pose_y = odom_msg.pose.pose.position.y
-        # print(odom_msg)
-        # if self.listener.frameExists("/map"):
         t = self.listener.getLatestCommonTime("/map", "/base_link")
         position, quaternion = self.listener.lookupTransform("/map", "/base_link", t)
-        # print('BASELINK TRANSFORM', position, quaternion)
         matrix = quaternion_matrix(quaternion)
-        # print('matrix: ', matrix)
 
         self.a = matrix[0][0]
         self.b = matrix[0][1]
         self.d = matrix[1][0]
         self.e = matrix[1][1]
-
-        self.position_y = position[0]
-        self.position_x = position[1]
-
-
-    def get_tf_x(self):
-        return int(self.pose_x) + self.shift
-
-    def get_tf_y(self):
-        return int(self.pose_y) + slf.shift
-
-    def get_array_idx(self):
-        num_rows = 4000-self.get_tf_y()
-        col = self.get_tf_x()
-        return 4000*num_rows + col
-        
+        self.positionY = position[0]
+        self.positionX = position[1]
 
 
 rospy.init_node("lane_detection")
-pub = rospy.Publisher('/lane_map', OccupancyGrid, queue_size=1000)
-n_state = Nav_State()
+n_state = NavState()
 
 def odom_callback(odom_msg):
     n_state.update_odom(odom_msg)
+    n_state.odom_counter += 1
+    if(n_state.odom_counter%10 == 0 and n_state.map_received):
+        print('-----------About to invoke ogrid publisher')
+        n_state.publish_new_grid()    
 
 def ogrid_callback(ogrid_msg):
-    n_state.update_grid(ogrid_msg)
-    pub.publish(n_state.last_grid)
+    print('-----------Updating the map...')
+    # n_state.map_received = False
+    n_state.latest_ogrid   = ogrid_msg
+    for j in range(4000*4000):
+        n_state.list[j-1] = n_state.latest_ogrid.data[j-1]
+    if(n_state.map_received == False):
+        n_state.ogridToPublish.info = ogrid_msg.info
+        n_state.publish_new_grid()
 
 def map_listener():
-    # rospy.init_node("lane_detection")
-    # listener = TransformListener()
-
-    # # transform = geometry_msgs.msg.TransformStamped()
-    # transform = listener.lookupTransform("odom","map",rospy.Time.now() )
-    # print('transform', transform)
-
-    ogrid_sub = rospy.Subscriber('/map', OccupancyGrid, ogrid_callback)
-    odom_sub  = rospy.Subscriber('/husky_velocity_controller/odom', Odometry, odom_callback)
+    ogrid_sub = rospy.Subscriber('/map' , OccupancyGrid, ogrid_callback)
+    odom_sub  = rospy.Subscriber('/odom', Odometry     , odom_callback )
     rospy.spin()
 
 if __name__ == '__main__':

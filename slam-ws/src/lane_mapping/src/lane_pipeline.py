@@ -649,6 +649,7 @@ def get_lane_points():
 		test_image = process_image(image, bboxes)
 		sw, points = highlight_all(test_image)
 		if(len(points) > 0):
+			print('got points: ', points)
 			return points
 
 
