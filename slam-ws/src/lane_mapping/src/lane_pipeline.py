@@ -7,10 +7,6 @@ import 	matplotlib.pyplot as plt
 import 	matplotlib.image as mpimg
 import os
 
-# Assumes that coordinates start from 0,0 at top left of image
-bboxes = [ {'bl': (0, 720), 'tl': (0, 385), 'tr': (370, 380), 'br': (400, 720)},
-			{'bl': (370, 290), 'tl': (370, 90), 'tr': (1060, 115), 'br': (1070, 410)} ]
-
 # Define perspective transform functions
 def warp(undistorted_image):
 	# Define calibration box in source (original) and
@@ -57,22 +53,8 @@ def unwarp(warped_image):
 
 	return unwarped
 
-# Mask out the pylons detected in bboxes:
-def apply_masking(bboxes, binary_image_to_mask):
-	for i in range(len(bboxes)):
-		start_x = bboxes[i].get('bl')[0]
-		fin_x = bboxes[i].get('br')[0]
-		start_y = bboxes[i].get('tl')[1]
-		fin_y = bboxes[i].get('bl')[1]
-
-		width = fin_x - start_x
-		height = fin_y - start_y
-		for x in range(width):
-			for y in range(height):
-				binary_image_to_mask[start_y + y - 1][start_x + x - 1] = 0
-
 # Take two different types of thresholding and combine resulting binaries
-def process_image(image, bboxes):
+def process_image(image):
 	height, width, channels = image.shape
 
 	undistorted_image = image # TODO: Remove camera distortion (see Medium article)
@@ -108,8 +90,6 @@ def process_image(image, bboxes):
 	sobel_thresholded_image = np.zeros_like(sobelxy_scaled)
 	sobel_thresholded_image[(sobelxy_scaled >= thresh_min) & (sobelxy_scaled <= thresh_max)] = 1
 
-
-
 	# Combine two thresholds
 	combined_binary = np.zeros_like(sobel_thresholded_image)
 	combined_binary[(s_thresholded_image == 1)|(sobel_thresholded_image == 1)] = 1
@@ -132,7 +112,6 @@ def process_image(image, bboxes):
 	# for x in range(0, len(lines)):
 	#     for x1,y1,x2,y2 in lines[x]:
 	#         cv2.line(nongraywarp,(x1,y1),(x2,y2),(0,0,255),4) #BGR
-
 
 	# Creating a three channel  image from our 1 channel binary(B&W) Image
 	three_channel_thresholded_image = np.dstack((warped_image,warped_image,warped_image))*255
@@ -249,7 +228,6 @@ def draw_sliding_window_right(image):
 	#plt.imshow(image)
 	#plt.scatter(left_fitx,ploty, 0.5,color='yellow')
 	#plt.show()
-
 	return points
 
 # Polyfits curve to input thresholded binary image
@@ -486,8 +464,6 @@ def draw_sliding_window(image):
 
 		# Highlightign the left and right lane regions
 		#image[lefty, leftx] = [255, 0, 0]
-
-
 	#return image
 
 # Draw lines originating from right, left and bottom of thresholded binary image
@@ -515,126 +491,6 @@ def highlight_all(image):
 	#     print("highlight_all: no lines from right")
 	return image, points
 
-## VIDEO PROCESSING-----------
-# Highlights the lane in the original video stream with green rectangle
-def highlight_lane_original(image):
-	# Process the image to undistort, apply sat and sobel thresholding
-	# and warp it into the bird's eye view
-	processed_image = process_image(image, bboxes)
-
-	# Crop to bottom half of image
-	crop_img = processed_image[600:720,0:1280]
-	histogram = np.sum(crop_img[:,:,0],axis = 0)
-
-	# Find the peaks of the left and right halves of the histogram
-	# as the starting point for the left and right lines
-	midpoint = np.int(histogram.shape[0]//2)
-	leftx_base = np.argmax(histogram[:midpoint])
-	rightx_base = np.argmax(histogram[midpoint:])+midpoint
-
-	# Hyperparameters
-	# choose the number of sliding windows
-	nwindows = 30
-	# Set the width of the windows +/- margin
-	margin = 50
-	# Set the minimum number of the pixels to recenter the windows
-	minpix = 50
-	# Set height of the windows - based on nwindows above and image shape
-	window_height = processed_image.shape[0] // nwindows
-
-	# Identify the x and y positions of all nonzero (i.e. activated) pixels in the image
-	nonzero = processed_image.nonzero()
-	nonzeroy = np.array(nonzero[0])
-	nonzerox = np.array(nonzero[1])
-	# Current positions to be updated later for each window in nwindows
-	leftx_current = leftx_base
-	rightx_current = rightx_base
-
-	# Create empty lists to receive left and right lane pixel indices
-	left_lane_inds = []
-	right_lane_inds = []
-	for window in range(nwindows):
-		#Identify window boundaries in x and y
-		win_y_low = processed_image.shape[0] - (window+1)*window_height
-		win_y_high = processed_image.shape[0] - window*window_height
-		win_xleft_low = leftx_current - margin
-		win_xleft_high = leftx_current + margin
-		win_xright_low = rightx_current - margin
-		win_xright_high = rightx_current + margin
-
-		# Identify the nonzero pixels in x and y within the window
-		good_left_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xleft_low) &  (nonzerox < win_xleft_high)).nonzero()[0]
-		good_right_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_xright_low) &  (nonzerox < win_xright_high)).nonzero()[0]
-		# Append these indices to the lists
-		left_lane_inds.append(good_left_inds)
-		right_lane_inds.append(good_right_inds)
-		#if more than minpix pixels were found , recenter next window on their mean position
-		if len(good_left_inds) > minpix:
-			leftx_current = np.int(np.mean(nonzerox[good_left_inds]))
-		if len(good_right_inds) > minpix:
-			rightx_current = np.int(np.mean(nonzerox[good_right_inds]))
-	# Concatenate the arrays of indices (previously was a list of lists of pixels)
-	left_lane_inds = np.concatenate(left_lane_inds)
-	right_lane_inds = np.concatenate(right_lane_inds)
-
-	# Extract left and right line pixel positions
-	leftx = nonzerox[left_lane_inds]
-	lefty = nonzeroy[left_lane_inds]
-	rightx = nonzerox[right_lane_inds]
-	righty = nonzeroy[right_lane_inds]
-
-
-	# Generate x and y values for plotting
-	ploty = np.linspace(0, processed_image.shape[0]-1, processed_image.shape[0])
-	try:
-		# Fit a second order polynomial to each set of lane points
-		left_fit = np.polyfit(lefty, leftx, 2)
-		right_fit = np.polyfit(righty, rightx, 2)
-		left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-		right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-	except TypeError:
-		# Avoids an error if `left` and `right_fit` are still none or incorrect
-		left_fitx = 1*ploty**2 + 1*ploty
-		right_fitx = 1*ploty**2 + 1*ploty
-
-	# Highlight the left and right lane regions
-	# drawing the left and right polynomials on the lane lines
-	pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
-	pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
-	pts = np.hstack((pts_left, pts_right))
-
-	blank_image = np.zeros_like(processed_image)
-	# Draw the lane onto a blank warped image
-	cv2.fillPoly(blank_image, np.int_([pts]), (0,255, 0))
-
-	# Transform the perspective back into the original view
-	unwarped_image = unwarp(blank_image)
-
-	# Add the unwarped processed image to the original image
-	weighted_image = cv2.addWeighted(image, 1.0, unwarped_image, .7, 0)
-	return weighted_image
-
-# Test and visualize the vision pipeline on sample images
-def test():
-	for i in range(0,10):
-		image_name = str(i) + '.jpg'
-		image = cv2.imread('images/'+'0.jpg')
-
-		test_image = process_image(image, bboxes)
-		sw, points = highlight_all(test_image)
-		warped_image = warp(image)
-
-		# Display resulting image
-		# plt.title(i)
-		# plt.imshow(warped_image)
-		# plt.show()
-		# plt.savefig('test/'+str(i)+'.png')
-		# plt.close()
-
-		# # generate ROS image
-		# bridge = CvBridge()
-		# imgMsg = bridge.cv2_to_imgmsg(sw, "bgr8")
-
 # Every 10 seconds creates a publisher to post certain information
 def get_lane_points():
 	while(True):
@@ -642,15 +498,12 @@ def get_lane_points():
 		image_name = '1' + '.jpg'
 		cwd = os.getcwd()
 		print(cwd)
-		image= cv2.imread('/home/michelle/Documents/slam_fork/SLAM/slam-ws/src/lane_mapping/src/images/' + image_name)
+		image= cv2.imread('/home/michelle/Michelle/SLAM/slam-ws/src/lane_mapping/src/images/' + image_name)
 		height, width, channels = image.shape
 		print('height: ', height)
 		print('width: ', width)
-		test_image = process_image(image, bboxes)
+		test_image = process_image(image)
 		sw, points = highlight_all(test_image)
 		if(len(points) > 0):
 			print('got points: ', points)
 			return points
-
-
-

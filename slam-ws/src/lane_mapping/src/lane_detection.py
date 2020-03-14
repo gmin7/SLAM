@@ -8,10 +8,6 @@ from tf import TransformListener
 from  geometry_msgs.msg import PointStamped
 from tf.transformations import quaternion_matrix
 
-## To Do
-'''
-'''
-
 # Define the class that will store global state of the robot
 class NavState:
     def __init__(self):
@@ -110,8 +106,8 @@ def ogrid_callback(ogrid_msg):
         n_state.publish_new_grid()
 
 def map_listener():
-    ogrid_sub = rospy.Subscriber('/map' , OccupancyGrid, ogrid_callback)
-    odom_sub  = rospy.Subscriber('/odom', Odometry     , odom_callback )
+    ogrid_sub = rospy.Subscriber('/map' , OccupancyGrid, ogrid_callback, queue_size=1)
+    odom_sub  = rospy.Subscriber('/odom', Odometry     , odom_callback , queue_size=1)
     rospy.spin()
 
 if __name__ == '__main__':
